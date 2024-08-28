@@ -1,0 +1,5 @@
+---
+
+- name: Join cluster
+  become: yes
+  shell: "{{ hostvars['controlplane']['join_command'] }}"

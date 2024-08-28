@@ -1,0 +1,56 @@
+---
+- name: check connectivity
+  become: true
+  shell: |
+    sudo swapoff -a
+    sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: Forward IPv4
+  shell: |
+    cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+    overlay
+    br_netfilter
+    EOF
+
+    sudo modprobe overlay
+    sudo modprobe br_netfilter
+
+    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward                 = 1
+    EOF
+
+    # Apply sysctl params without reboot
+    sudo sysctl --system
+    exit 0
+
+- name: Setup Docker repository
+  shell: |
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl -y
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    sudo apt-get update
+
+- name: Install containerd
+  command: sudo apt-get install containerd.io -y
+
+- name: Copy containerd config
+  become: true
+  template:
+    src: containerd_config.toml
+    dest: /etc/containerd/config.toml
+    mode: '0664'
+    owner: root
+    group: root
+
+- name: Restart containerd
+  command: sudo systemctl restart containerd

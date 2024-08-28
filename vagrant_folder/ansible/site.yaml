@@ -1,0 +1,13 @@
+---
+# - hosts: controlplane,node01,node02
+#   roles:
+#   - container_runtime
+#   - kubefamily
+
+- hosts: controlplane
+  roles: 
+  - control_plane
+
+- hosts: node01,node02
+  roles: 
+  - join_node

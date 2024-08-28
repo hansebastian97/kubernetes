@@ -1,0 +1,47 @@
+---
+
+# - name: Import variables
+#   include_vars: ../vars/vars.yaml
+
+# - name: Enable kubelet
+#   become: true
+#   command: sudo systemctl enable --now kubelet
+
+# - name: Init kubeadm
+#   become: true
+#   command: sudo kubeadm init \
+#           --pod-network-cidr=10.244.0.0/16 \
+#           --apiserver-advertise-address={{ CONTROLPLANE_IP }}
+
+# - name: Setup directory
+#   shell: |
+#     mkdir -p $HOME/.kube
+#     sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+#     sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# - name: Run calico
+#   command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/tigera-operator.yaml
+
+# - name: Copy custom calico config
+#   template:
+#     src: calico.yaml
+#     dest: /home/vagrant/calico.yaml
+#     mode: '0777'
+#     owner: vagrant
+#     group: vagrant
+
+# - name: Run custom calico config
+#   command: kubectl create -f calico.yaml
+
+- name: Get token and ca-certificate
+  shell: kubeadm token create --print-join-command
+  register: kubeadm_join_command
+
+- name: set join command
+  set_fact:
+    join_command: "sudo {{ kubeadm_join_command.stdout }}"
+  delegate_to: controlplane
+# # Use the info
+# - name: debug
+#   debug:
+#     msg: 'sha256:{{ __k8s_pki_ca["public_key_fingerprints"]["sha256"] | replace(":","") }}'
